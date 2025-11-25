@@ -1,3 +1,5 @@
+from app.core.settings import settings
+
 from fastapi import FastAPI
 
 app = FastAPI(
