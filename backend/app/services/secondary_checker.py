@@ -8,10 +8,6 @@ def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 class SecondaryChecker:
-    """
-    Confirm scraped product across multiple sites to avoid false alerts.
-    """
-
     def verify(self, structured: Dict, scraped_results: List[Dict], name_threshold: float = 0.68, price_tolerance: float = 0.08):
         structured_name = structured.get("name") or structured.get("product_name") or ""
         structured_price = structured.get("price") or structured.get("final_price") or structured.get("current_price")
@@ -24,7 +20,6 @@ class SecondaryChecker:
         for r in scraped_results:
             r_name = r.get("name") or ""
             r_price = r.get("price")
-
             name_score = _similarity(structured_name, r_name)
             price_ok = False
             if structured_price is not None and r_price is not None:

@@ -1,26 +1,28 @@
+# backend/app/main.py
 from fastapi import FastAPI
-from app.core.settings import settings
-from app.api.health import router as health_router
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.product_routes import router as product_router
+from app.api.history_routes import router as history_router
+from app.scheduler.jobs import start_scheduler
 
-from app.scheduler.jobs import start_scheduler, scheduler
+app = FastAPI(title="AI Price Tracker Backend")
 
-app = FastAPI(
-    title=settings.app_name,
-    version="1.0.0",
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-app.include_router(health_router, prefix="/api")
 app.include_router(product_router)
+app.include_router(history_router)
 
-
-@app.get("/")
-def root():
-    return {"message": "Backend is working!"}
-
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.on_event("startup")
 async def startup_event():
-    # prevents double-start when using --reload
-    if not scheduler.running:
-        start_scheduler()
+    # start scheduler (non-blocking)
+    start_scheduler()

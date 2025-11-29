@@ -1,7 +1,9 @@
+# backend/app/scrapers/__init__.py
 from .amazon_scraper import AmazonScraper
 from .flipkart_scraper import FlipkartScraper
 from .croma_scraper import CromaScraper
 
+# create instances
 SCRAPER_MAP = {
     "amazon": AmazonScraper(),
     "flipkart": FlipkartScraper(),
@@ -9,7 +11,8 @@ SCRAPER_MAP = {
 }
 
 async def scrape_price(source: str, url: str):
-    scraper = SCRAPER_MAP.get(source)
+    scraper = SCRAPER_MAP.get(source.lower())
     if not scraper:
-        return {"price": None, "name": None, "status": "error"}
+        return {"price": None, "name": None, "status": "error", "explain": "no_scraper_for_source"}
+    # call scraper.scrape (async)
     return await scraper.scrape(url)

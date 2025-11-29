@@ -1,18 +1,13 @@
-# app/scrapers/base.py
-
+# backend/app/scrapers/base.py
 from abc import ABC, abstractmethod
 
 class BaseScraper(ABC):
-    """Base class for all scrapers."""
-
     @abstractmethod
     async def scrape(self, url: str) -> dict:
         """
-        Returns:
-            {
-                "price": float,
-                "name": str,
-                "status": "ok" | "error"
-            }
+        Return dict with keys:
+          - price (float or None)
+          - name (str or None)
+          - status ("ok"|"error")
         """
-        pass
+        raise NotImplementedError

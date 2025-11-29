@@ -3,10 +3,6 @@ from sqlalchemy import select
 from app.models import PriceHistory
 
 async def should_trigger_alert(session, product, new_price, source_name=None):
-    """
-    Old-style rule engine kept for compatibility.
-    Returns (bool, reason_str)
-    """
     if new_price is None:
         return False, None
 
@@ -17,7 +13,6 @@ async def should_trigger_alert(session, product, new_price, source_name=None):
     if target_price is not None and new_price <= target_price:
         return True, "target_hit"
 
-    # fetch lowest historic price
     q = await session.execute(select(PriceHistory).where(PriceHistory.product_id == product.id).order_by(PriceHistory.price.asc()).limit(1))
     row = q.scalars().first()
     if row:

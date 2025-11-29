@@ -3,111 +3,95 @@ import os
 import json
 import asyncio
 
-# Optional: OpenAI; if not configured we fallback to a local aggregator
-try:
-    import openai
-except Exception:
-    openai = None
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Try import groq SDK if available
+try:
+    from groq import Groq
+except Exception:
+    Groq = None
 
 async def _fallback_aggregate(scraped_results):
     """
-    Simple fallback aggregator: choose the minimum numeric price and the first name.
-    Returns a dict: { "price": float|None, "name": str|None, "status": "ok"|"error", "explain": str }
+    Deterministic fallback — choose minimum numeric price and first name.
     """
     prices = [r.get("price") for r in scraped_results if isinstance(r.get("price"), (int, float))]
-    price = min(prices) if prices else None
-
+    final_price = min(prices) if prices else None
     name = None
     for r in scraped_results:
         if r.get("name"):
             name = r.get("name")
             break
+    return {"price": final_price, "name": name, "status": "ok" if final_price is not None else "error", "explain": "fallback"}
 
-    status = "ok" if price is not None else "error"
-    return {"price": price, "name": name, "status": status, "explain": "fallback_aggregate"}
+async def _call_groq(scraped_results, product_name=""):
+    """
+    Call Groq synchronously inside a thread (Groq SDK is sync).
+    Returns a dict parsed from LLM output. Expects the model to return JSON string.
+    """
+    if Groq is None or not GROQ_API_KEY:
+        raise RuntimeError("Groq SDK not available or GROQ_API_KEY not set")
+
+    def _blocking_call():
+        client = Groq(api_key=GROQ_API_KEY)
+        prompt = f"""
+        Extract the best realistic product price and a clean product name from the following scraped results.
+        Return only JSON with keys: price (number|null), name (string|null), status ('ok'|'error'), explain (string).
+        Product name (user): {product_name}
+        Scraped results:
+        {json.dumps(scraped_results, default=str)}
+        """
+        # Using chat completion; Groq's SDK might differ slightly per version.
+        resp = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role":"system","content":"You are a price extraction assistant."},
+                      {"role":"user","content":prompt}],
+            temperature=0.0,
+            max_tokens=400
+        )
+        # resp.choices[0].message.content or resp.choices[0].message['content']
+        try:
+            text = resp.choices[0].message["content"]
+        except Exception:
+            text = resp.choices[0].message.content if hasattr(resp.choices[0].message, "content") else str(resp)
+        return text
+
+    try:
+        text = await asyncio.to_thread(_blocking_call)
+        # parse JSON
+        parsed = json.loads(text.strip())
+        # normalize price if string
+        price = parsed.get("price")
+        if isinstance(price, str):
+            try:
+                price = float(price.replace("₹", "").replace(",", "").strip())
+            except Exception:
+                price = None
+        return {"price": price, "name": parsed.get("name"), "status": parsed.get("status", "ok" if price is not None else "error"), "explain": parsed.get("explain", "from_groq")}
+    except Exception as e:
+        print("Groq call failed:", e)
+        return await _fallback_aggregate(scraped_results)
 
 async def ai_validate_price(product_name_or_results, scraped_results=None):
     """
-    Two accepted signatures (backwards compatible):
-      1) ai_validate_price(product_name: str, scraped_results: list[dict])
-      2) ai_validate_price(scraped_results: list[dict])
-
-    Returns a dict with keys:
-      - price (float or None)
-      - name (str or None)
-      - status ("ok"|"error")
-      - explain (optional)
+    Two signatures supported:
+     - ai_validate_price(product_name: str, scraped_results: list)
+     - ai_validate_price(scraped_results: list)
     """
-    # Normalize parameters
     if scraped_results is None:
-        # signature: ai_validate_price(scraped_results)
         scraped = product_name_or_results if isinstance(product_name_or_results, list) else []
         product_name = ""
     else:
         product_name = product_name_or_results or ""
         scraped = scraped_results or []
 
-    # If OpenAI is available and key is configured, try to call it.
-    if openai and OPENAI_API_KEY:
+    # If GROQ_API_KEY present, call Groq; otherwise fallback
+    if GROQ_API_KEY and Groq is not None:
         try:
-            openai.api_key = OPENAI_API_KEY
-            prompt = {
-                "product_name": product_name,
-                "scraped_results": scraped
-            }
-            # A short prompt instructing the model to return JSON
-            system_msg = "You are an assistant that chooses the best realistic product price from messy scraped data. Respond only with a JSON object."
-            user_msg = f"Product name: {product_name}\nScraped results (JSON array):\n{json.dumps(scraped, default=str)}\n\nReturn JSON with keys: price (number|null), name (string|null), status ('ok' or 'error'), explain (short)."
-
-            # Use ChatCompletion if available; handle both APIs
-            try:
-                resp = openai.ChatCompletion.create(
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                    messages=[
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    temperature=0.0,
-                    max_tokens=400
-                )
-                text = resp.choices[0].message["content"]
-            except Exception:
-                # Fallback to completions
-                resp = openai.Completion.create(
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-                    prompt=user_msg,
-                    max_tokens=400,
-                    temperature=0.0
-                )
-                text = resp.choices[0].text
-
-            # Try parse JSON
-            try:
-                parsed = json.loads(text.strip())
-                # Ensure keys exist
-                price = parsed.get("price")
-                # convert to number if string
-                if isinstance(price, str):
-                    try:
-                        price = float(price.replace(",", "").replace("₹", "").strip())
-                    except Exception:
-                        price = None
-                return {
-                    "price": price,
-                    "name": parsed.get("name"),
-                    "status": parsed.get("status", "ok" if price is not None else "error"),
-                    "explain": parsed.get("explain", "from_llm")
-                }
-            except Exception:
-                # LLM returned non-JSON: try to extract a number
-                # fallback to aggregator
-                return await _fallback_aggregate(scraped)
+            return await _call_groq(scraped, product_name)
         except Exception as e:
-            # LLM call failed; fallback
-            print("⚠ AI agent call failed:", e)
+            print("Groq error, falling back:", e)
             return await _fallback_aggregate(scraped)
     else:
-        # No OpenAI configured: fallback aggregator
         return await _fallback_aggregate(scraped)

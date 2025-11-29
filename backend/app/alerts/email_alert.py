@@ -3,26 +3,20 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+from app.core.settings import settings
 
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_EMAIL = os.getenv("SMTP_EMAIL") or settings.smtp_email
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD") or settings.smtp_password
+SMTP_HOST = os.getenv("SMTP_HOST") or settings.smtp_host
+SMTP_PORT = int(os.getenv("SMTP_PORT") or settings.smtp_port or 587)
 
 async def send_email_alert(to_email: str, product_name: str, product_url: str, old_price: float, new_price: float, near: bool = False):
-    """
-    Send an HTML email alert. This function is synchronous (smtplib) but marked async for caller compatibility.
-    It's safe to call with 'await'.
-    """
     if not to_email:
-        print("  ⚠ send_email_alert called without to_email")
+        print("  ⚠ No to_email provided for send_email_alert")
         return
 
     subject = f"🔔 Price Alert — {product_name}"
-    if near:
-        subject = f"⚠️ {product_name} price near historical low"
-    else:
-        subject = f"🔥 {product_name} new lowest price!"
+    subject = f"⚠️ {product_name} price near historical low" if near else f"🔥 {product_name} new lowest price!"
 
     body = f"""
     <html><body>
@@ -36,7 +30,7 @@ async def send_email_alert(to_email: str, product_name: str, product_url: str, o
     """
 
     msg = MIMEMultipart()
-    msg["From"] = SMTP_EMAIL or "no-reply@example.com"
+    msg["From"] = SMTP_EMAIL or "no-reply@price-tracker.local"
     msg["To"] = to_email
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "html"))

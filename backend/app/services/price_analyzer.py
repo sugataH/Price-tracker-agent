@@ -4,10 +4,6 @@ from app.models import PriceHistory
 from datetime import datetime
 
 class PriceAnalyzer:
-    """
-    Analyze validated final prices and decide alerting behavior.
-    """
-
     def __init__(self, session, near_threshold: float = 0.05):
         self.session = session
         self.near_threshold = near_threshold
@@ -28,7 +24,6 @@ class PriceAnalyzer:
 
         if previous_low is None or current_price < previous_low:
             setattr(product, "lowest_price", current_price)
-            # caller will commit
             return True, previous_low
 
         return False, previous_low
