@@ -17,7 +17,6 @@ scheduler = AsyncIOScheduler()
 async def _run_check_for_product(session, product):
     print(f"🔍 Checking product id={product.id}")
 
-    # Get sources
     q = await session.execute(select(ProductSource).where(ProductSource.product_id == product.id))
     sources = q.scalars().all()
 
@@ -39,7 +38,6 @@ async def _run_check_for_product(session, product):
         print("  ⚠ Nothing scraped for this product")
         return
 
-    # AI validation (supports two signatures)
     ai_output = None
     try:
         ai_output = await ai_validate_price(getattr(product, "name", ""), scraped_results)
@@ -63,26 +61,21 @@ async def _run_check_for_product(session, product):
     final_name = ai_output.get("name") or getattr(product, "name", None)
     final_status = ai_output.get("status", "error")
 
-    # update product fields
     product.current_price = final_price
     product.last_checked = datetime.utcnow()
     product.status = final_status
     if final_name:
         product.name = final_name
 
-    # add history entry
     if final_price is not None:
         h = PriceHistory(product_id=product.id, price=final_price, timestamp=datetime.utcnow())
         session.add(h)
 
-    # analyze for alert and lowest update
     analyzer = PriceAnalyzer(session, near_threshold=0.05)
     analysis = await analyzer.analyze(product, final_price)
 
-    # commit product + history changes
     await session.commit()
 
-    # secondary verification
     checker = SecondaryChecker()
     sec = checker.verify({"name": final_name, "price": final_price}, scraped_results, name_threshold=0.68, price_tolerance=0.08)
 
