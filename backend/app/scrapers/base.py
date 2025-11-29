@@ -6,8 +6,8 @@ class BaseScraper(ABC):
     async def scrape(self, url: str) -> dict:
         """
         Return dict with keys:
-          - price (float or None)
-          - name (str or None)
+          - price (float|None)
+          - name (str|None)
           - status ("ok"|"error")
         """
         raise NotImplementedError

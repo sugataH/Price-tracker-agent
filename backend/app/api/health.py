@@ -1,7 +1,8 @@
+# backend/app/api/health.py
 from fastapi import APIRouter
 
 router = APIRouter()
 
 @router.get("/health")
-def health_check():
-    return {"status": "ok", "message": "Backend is healthy"}
+async def health():
+    return {"status": "ok"}

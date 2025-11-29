@@ -1,7 +1,6 @@
 # backend/app/services/price_analyzer.py
 from sqlalchemy import select, func
 from app.models import PriceHistory
-from datetime import datetime
 
 class PriceAnalyzer:
     def __init__(self, session, near_threshold: float = 0.05):
@@ -9,9 +8,7 @@ class PriceAnalyzer:
         self.near_threshold = near_threshold
 
     async def get_all_time_lowest(self, product_id: int):
-        q = await self.session.execute(
-            select(func.min(PriceHistory.price)).where(PriceHistory.product_id == product_id)
-        )
+        q = await self.session.execute(select(func.min(PriceHistory.price)).where(PriceHistory.product_id == product_id))
         return q.scalar_one_or_none()
 
     async def update_lowest_if_needed(self, product, current_price: float):
@@ -52,10 +49,4 @@ class PriceAnalyzer:
 
         alert = new_low or near_low or target_hit
 
-        return {
-            "alert": alert,
-            "new_low": new_low,
-            "near_low": near_low,
-            "previous_lowest": previous_low,
-            "target_hit": target_hit
-        }
+        return {"alert": alert, "new_low": new_low, "near_low": near_low, "previous_lowest": previous_low, "target_hit": target_hit}

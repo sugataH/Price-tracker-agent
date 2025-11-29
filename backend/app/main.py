@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.product_routes import router as product_router
 from app.api.history_routes import router as history_router
+from app.api.health import router as health_router
 from app.scheduler.jobs import start_scheduler
 
 app = FastAPI(title="AI Price Tracker Backend")
@@ -17,12 +18,8 @@ app.add_middleware(
 
 app.include_router(product_router)
 app.include_router(history_router)
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+app.include_router(health_router)
 
 @app.on_event("startup")
 async def startup_event():
-    # start scheduler (non-blocking)
     start_scheduler()

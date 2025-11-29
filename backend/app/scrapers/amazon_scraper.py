@@ -19,7 +19,6 @@ class AmazonScraper(BaseScraper):
             title_el = soup.select_one("#productTitle")
             name = title_el.get_text(strip=True) if title_el else None
 
-            # common Amazon price selectors
             price_el = soup.select_one(".a-price .a-offscreen")
             if not price_el:
                 price_el = soup.select_one("#priceblock_ourprice") or soup.select_one("#priceblock_dealprice")
@@ -40,7 +39,6 @@ def _parse_price(txt: str):
         return None
     try:
         cleaned = txt.replace("₹", "").replace(",", "").strip()
-        # remove any non-digit at end
         cleaned = ''.join(ch for ch in cleaned if (ch.isdigit() or ch == '.'))
         return float(cleaned) if cleaned else None
     except Exception:

@@ -9,6 +9,6 @@ class ProductSource(Base):
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
     url = Column(String, nullable=False)
-    source = Column(String, nullable=False)  # e.g., amazon / flipkart / croma
+    source = Column(String, nullable=False)
 
     product = relationship("Product", back_populates="sources")

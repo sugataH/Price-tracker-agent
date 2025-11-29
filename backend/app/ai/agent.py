@@ -6,16 +6,12 @@ import asyncio
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-# Try import groq SDK if available
 try:
     from groq import Groq
 except Exception:
     Groq = None
 
 async def _fallback_aggregate(scraped_results):
-    """
-    Deterministic fallback — choose minimum numeric price and first name.
-    """
     prices = [r.get("price") for r in scraped_results if isinstance(r.get("price"), (int, float))]
     final_price = min(prices) if prices else None
     name = None
@@ -26,23 +22,18 @@ async def _fallback_aggregate(scraped_results):
     return {"price": final_price, "name": name, "status": "ok" if final_price is not None else "error", "explain": "fallback"}
 
 async def _call_groq(scraped_results, product_name=""):
-    """
-    Call Groq synchronously inside a thread (Groq SDK is sync).
-    Returns a dict parsed from LLM output. Expects the model to return JSON string.
-    """
     if Groq is None or not GROQ_API_KEY:
         raise RuntimeError("Groq SDK not available or GROQ_API_KEY not set")
 
     def _blocking_call():
         client = Groq(api_key=GROQ_API_KEY)
         prompt = f"""
-        Extract the best realistic product price and a clean product name from the following scraped results.
-        Return only JSON with keys: price (number|null), name (string|null), status ('ok'|'error'), explain (string).
-        Product name (user): {product_name}
-        Scraped results:
-        {json.dumps(scraped_results, default=str)}
-        """
-        # Using chat completion; Groq's SDK might differ slightly per version.
+Extract the best realistic product price and a clean product name from the following scraped results.
+Return only JSON with keys: price (number|null), name (string|null), status ('ok'|'error'), explain (string).
+Product name (user): {product_name}
+Scraped results:
+{json.dumps(scraped_results, default=str)}
+"""
         resp = client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[{"role":"system","content":"You are a price extraction assistant."},
@@ -50,7 +41,6 @@ async def _call_groq(scraped_results, product_name=""):
             temperature=0.0,
             max_tokens=400
         )
-        # resp.choices[0].message.content or resp.choices[0].message['content']
         try:
             text = resp.choices[0].message["content"]
         except Exception:
@@ -59,9 +49,7 @@ async def _call_groq(scraped_results, product_name=""):
 
     try:
         text = await asyncio.to_thread(_blocking_call)
-        # parse JSON
         parsed = json.loads(text.strip())
-        # normalize price if string
         price = parsed.get("price")
         if isinstance(price, str):
             try:
@@ -74,11 +62,6 @@ async def _call_groq(scraped_results, product_name=""):
         return await _fallback_aggregate(scraped_results)
 
 async def ai_validate_price(product_name_or_results, scraped_results=None):
-    """
-    Two signatures supported:
-     - ai_validate_price(product_name: str, scraped_results: list)
-     - ai_validate_price(scraped_results: list)
-    """
     if scraped_results is None:
         scraped = product_name_or_results if isinstance(product_name_or_results, list) else []
         product_name = ""
@@ -86,7 +69,6 @@ async def ai_validate_price(product_name_or_results, scraped_results=None):
         product_name = product_name_or_results or ""
         scraped = scraped_results or []
 
-    # If GROQ_API_KEY present, call Groq; otherwise fallback
     if GROQ_API_KEY and Groq is not None:
         try:
             return await _call_groq(scraped, product_name)
