@@ -1,3 +1,5 @@
+# backend/app/api/ai_test.py
+
 from fastapi import APIRouter
 from app.ai.agent import ai_validate_price
 
@@ -5,7 +7,7 @@ router = APIRouter()
 
 @router.get("/ai-test")
 async def ai_test():
-    test_scraped_results = [
+    scraped = [
         {
             "name": "Test Product",
             "price": 999,
@@ -14,10 +16,10 @@ async def ai_test():
         }
     ]
 
-    result = await ai_validate_price("Test Product", test_scraped_results)
+    result = await ai_validate_price("Test Product", scraped)
 
     return {
         "status": "AI working",
-        "input": test_scraped_results,
+        "input": scraped,
         "output": result
     }

@@ -1,9 +1,13 @@
+# backend/app/ai/agent.py
+
 import os
 import json
 import asyncio
+import re
+from app.core.settings import settings
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_API_KEY = settings.GROQ_API_KEY
+GROQ_MODEL = settings.GROQ_MODEL
 
 try:
     from groq import Groq
@@ -29,6 +33,25 @@ async def _fallback_aggregate(scraped_results):
     }
 
 
+def _extract_json(text: str):
+    """Extract JSON from Groq response safely"""
+    # try direct JSON first
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # try finding JSON inside text (e.g., fenced or wrapped)
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except Exception:
+            pass
+
+    return None
+
+
 async def _call_groq(scraped_results, product_name=""):
     if Groq is None or not GROQ_API_KEY:
         raise RuntimeError("Groq SDK not available or GROQ_API_KEY not set")
@@ -42,7 +65,6 @@ Product name (user): {product_name}
 Scraped results:
 {json.dumps(scraped_results, default=str)}
 """
-
         resp = client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[
@@ -53,16 +75,20 @@ Scraped results:
             max_tokens=400
         )
 
+        # extract content safely
         try:
             text = resp.choices[0].message["content"]
         except Exception:
-            text = resp.choices[0].message.content
+            text = getattr(resp.choices[0].message, "content", str(resp))
 
         return text
 
     try:
         text = await asyncio.to_thread(_blocking_call)
-        parsed = json.loads(text.strip())
+        parsed = _extract_json(text)
+
+        if not parsed:
+            raise ValueError(f"Groq returned invalid JSON: {text}")
 
         price = parsed.get("price")
         if isinstance(price, str):

@@ -1,29 +1,18 @@
-# backend/app/core/settings.py
-from pydantic_settings import BaseSettings
+import os
+from dotenv import load_dotenv
 
-class Settings(BaseSettings):
-    app_name: str = "AI Price Tracker Backend"
-    environment: str = "development"
+# Load .env once
+load_dotenv()
 
-    # Database
-    database_url: str | None = None
+class Settings:
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-    # Email / SMTP
-    smtp_email: str | None = None
-    smtp_password: str | None = None
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
 
-    # LLM (Groq)
-    groq_api_key: str | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
-
-    # Generic
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-4o-mini"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    SMTP_EMAIL: str = os.getenv("SMTP_EMAIL")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
+    SMTP_HOST: str = os.getenv("SMTP_HOST")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
 
 settings = Settings()
