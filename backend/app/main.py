@@ -2,6 +2,8 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.dev_routes import router as dev_router
+
 
 from app.api.product_routes import router as product_router
 from app.api.history_routes import router as history_router
@@ -29,6 +31,7 @@ app.include_router(health_router,   prefix="/health")      # /health/*
 app.include_router(product_router,   prefix="/products")   # /products/*
 app.include_router(history_router,   prefix="/history")    # /history/*
 app.include_router(ai_test_router,   prefix="/test")       # /test/*
+app.include_router(dev_router, prefix="/dev")
 
 # Scheduler starts at startup
 @app.on_event("startup")
