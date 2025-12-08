@@ -58,3 +58,9 @@ asyncpg
 alembic
 apscheduler
 groq
+motor
+
+
+
+
+

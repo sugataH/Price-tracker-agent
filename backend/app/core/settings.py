@@ -1,19 +1,29 @@
-import os
-from dotenv import load_dotenv
+# backend/app/core/settings.py
+from pydantic_settings import BaseSettings
 
-# Load .env once
-env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
-load_dotenv(env_path)
 
-class Settings:
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+class Settings(BaseSettings):
+    # App
+    app_name: str = "AI Price Tracker Backend"
+    environment: str = "development"
 
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    # MongoDB
+    mongo_uri: str | None = None
+    mongo_db: str = "price_tracker_db"
 
-    SMTP_EMAIL: str = os.getenv("SMTP_EMAIL")
-    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
-    SMTP_HOST: str = os.getenv("SMTP_HOST")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    # Email / SMTP
+    smtp_email: str | None = None
+    smtp_password: str | None = None
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+
+    # LLM (Groq)
+    GROQ_API_KEY: str | None = None
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
 
 settings = Settings()

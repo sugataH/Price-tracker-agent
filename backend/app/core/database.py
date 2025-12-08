@@ -1,24 +1,29 @@
 # backend/app/core/database.py
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
-import os
+from motor.motor_asyncio import AsyncIOMotorClient
+from app.core.settings import settings
 
-load_dotenv()
+_client: AsyncIOMotorClient | None = None
 
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=True
-)
+def get_client() -> AsyncIOMotorClient:
+    global _client
+    if _client is None:
+        uri = settings.mongo_uri or settings.MONGO_URI if hasattr(settings, "MONGO_URI") else None
+        if not uri:
+            raise RuntimeError("MONGO_URI not set in environment (.env)")
+        _client = AsyncIOMotorClient(uri)
+    return _client
 
-AsyncSessionLocal = sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
+def get_db():
+    """
+    Return the Motor database instance. This is a synchronous accessor used inside async functions.
+    Use inside async endpoints like:
+        db = get_db()
+        collection = db.products
+    """
+    client = get_client()
+    db_name = settings.mongo_db if getattr(settings, "mongo_db", None) else getattr(settings, "MONGO_DB", None)
+    if not db_name:
+        raise RuntimeError("mongo_db not set in settings")
+    return client[db_name]
