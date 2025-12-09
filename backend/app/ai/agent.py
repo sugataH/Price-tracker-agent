@@ -6,8 +6,9 @@ import asyncio
 import re
 from app.core.settings import settings
 
-GROQ_API_KEY = settings.GROQ_API_KEY
-GROQ_MODEL = settings.GROQ_MODEL
+GROQ_API_KEY = settings.groq_api_key
+GROQ_MODEL = settings.groq_model
+
 
 try:
     from groq import Groq

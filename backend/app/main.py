@@ -31,7 +31,7 @@ app.include_router(health_router,   prefix="/health")      # /health/*
 app.include_router(product_router,   prefix="/products")   # /products/*
 app.include_router(history_router,   prefix="/history")    # /history/*
 app.include_router(ai_test_router,   prefix="/test")       # /test/*
-app.include_router(dev_router, prefix="/dev")
+app.include_router(dev_router)
 
 # Scheduler starts at startup
 @app.on_event("startup")

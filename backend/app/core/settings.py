@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     # MongoDB
-    mongo_uri: str | None = None
-    mongo_db: str = "price_tracker_db"
+    database_url: str = "mongodb://localhost:27017"
+    mongo_db_name: str = "price_tracker"
 
     # Email / SMTP
     smtp_email: str | None = None
@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     smtp_port: int = 587
 
     # LLM (Groq)
-    GROQ_API_KEY: str | None = None
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
 
     class Config:
         env_file = ".env"
